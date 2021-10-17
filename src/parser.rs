@@ -169,12 +169,26 @@ pub fn recursive_generate_tree(token_list: &mut TokenList, arg1_in: Option<Opera
 
         }
         else if let TokenType::LParen = operator2.token_type {
-            let pass_arg = OperatorElement::ExpressionTree( Box::new(ExpressionTree{
-                arg1,
-                arg2,
-                operator: operator1.clone()
-            }));
-            return recursive_generate_tree_parenthesis(token_list, Some(pass_arg));
+            match operator1.token_type {
+                TokenType::Operator(op1) => {
+                    if op1 == 0 {
+                        // it is a dot, and that should execute first
+                        let pass_arg = OperatorElement::ExpressionTree( Box::new(ExpressionTree{
+                            arg1,
+                            arg2,
+                            operator: operator1.clone()
+                        }));
+                        return recursive_generate_tree(token_list, Some(pass_arg));
+                    }
+                    else {
+                        arg2 = recursive_generate_tree(token_list, Some(arg2))?;
+                        continue;
+                    }
+                }
+                _ => {
+                    panic!("Something went wrong");
+                }
+            }
         }
         else if let TokenType::RParen = operator2.token_type {
             return Ok(OperatorElement::ExpressionTree( Box::new(ExpressionTree{
@@ -230,10 +244,3 @@ pub fn generate_tree(token_list: &mut TokenList) -> CompilerResult<Option<Operat
     return Ok(arg1);
 }
 
-struct ParseTree {
-
-}
-
-pub fn parse(token_list: TokenList) {
-    
-}
