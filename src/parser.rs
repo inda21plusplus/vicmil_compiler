@@ -7,15 +7,16 @@ use std::collections::linked_list::Iter as LinkedListIter;
 pub enum OperatorElement {
     ExpressionTree(Box<ExpressionTree>),
     Token(Token),
-    Parenthesis(Parenthesis)
+    Parenthesis(Box<Parenthesis>),
 }
 
 pub struct Parenthesis {
-    arg: Box<ExpressionTree>,
+    arg: OperatorElement,
 }
 impl Parenthesis {
     pub fn to_string(&self) -> String {
         let mut text = String::from("(");
+        text += self.arg.to_string().as_str();
         /*let mut iter_num = 0;
         for i in self.arg_list.iter() {
             if iter_num != 0 {
@@ -23,8 +24,8 @@ impl Parenthesis {
             }
             text += i.to_string().as_str();
             iter_num += 1;
-        }
-        text += ")";*/
+        }*/
+        text += ")";
         return text;
     }
 }
@@ -69,8 +70,18 @@ pub fn get_arguments_for_func(linked_list_iter: &mut LinkedListIter<Token>) -> C
     return Err(CompilerError::String("Something went wrong when parsing arguments".to_string()));
 }
 
+pub fn recursive_generate_tree_parenthesis(token_list: &mut TokenList, arg1_in: Option<OperatorElement>) -> CompilerResult<OperatorElement> {
+    return Ok(OperatorElement::Parenthesis(Box::new(Parenthesis{arg: recursive_generate_tree(token_list, arg1_in)?})));
+}
+
 pub fn recursive_generate_tree(token_list: &mut TokenList, arg1_in: Option<OperatorElement>) -> CompilerResult<OperatorElement> {
     // To add: Function call handling
+    if arg1_in.is_some() {
+        println!("{}   :   {}\n\n", arg1_in.as_ref().unwrap().to_string(), token_list.to_string());
+    }
+    else {
+        println!("None   :   {}\n\n", token_list.to_string());
+    }
 
     let arg1: OperatorElement;
     if arg1_in.is_none() {
@@ -81,7 +92,13 @@ pub fn recursive_generate_tree(token_list: &mut TokenList, arg1_in: Option<Opera
         // Parse argument
         if let TokenType::LParen = element_1.token_type {
             // If element_1 is parenthesis, parse that first
-            arg1 = recursive_generate_tree(token_list, None)?;
+            //arg1 = recursive_generate_tree(token_list, None)?;
+            arg1 = recursive_generate_tree_parenthesis(token_list, None)?;
+        }
+        else if let TokenType::RParen = element_1.token_type {
+            // If element_1 is parenthesis, parse that first
+            //arg1 = recursive_generate_tree(token_list, None)?;
+            return Ok(OperatorElement::Token(Token::new("".to_string(), TokenType::RParen, element_1.line_num, element_1.col_num)));
         }
         else if let TokenType::IdentifierOrNumber = element_1.token_type {
             // Just set arg1 to the element_1
@@ -97,9 +114,22 @@ pub fn recursive_generate_tree(token_list: &mut TokenList, arg1_in: Option<Opera
 
     // Find first operator
     let operator1 = token_list.tokens.pop_front();
+    if operator1.is_none() {
+        return Ok(arg1);
+    }
     let operator1 = operator1.unwrap();
-    // Make sure it is an operator
     if let TokenType::Operator(_) = operator1.token_type {
+    }
+    else if let TokenType::LParen = operator1.token_type {
+        let paren_expression = recursive_generate_tree_parenthesis(token_list, None)?;
+        return Ok(OperatorElement::ExpressionTree( Box::new(ExpressionTree{
+            arg1,
+            arg2: paren_expression,
+            operator: operator1.clone()
+        })));
+    }
+    else if let TokenType::RParen = operator1.token_type {
+        return Ok(arg1);
     }
     else {
         return Err(CompilerError::from(TokenError::new(operator1.clone(), TokenErrorEnum::ExpectedOperator)))
@@ -113,7 +143,7 @@ pub fn recursive_generate_tree(token_list: &mut TokenList, arg1_in: Option<Opera
     let mut arg2: OperatorElement;
     if let TokenType::LParen = element_2.token_type {
         // If element_2 is parenthesis, parse that first
-        arg2 = recursive_generate_tree(token_list, None)?;
+        arg2 = recursive_generate_tree_parenthesis(token_list, None)?;
     }
     else if let TokenType::IdentifierOrNumber = element_2.token_type {
         // Just set arg2 to the element_2
@@ -133,13 +163,25 @@ pub fn recursive_generate_tree(token_list: &mut TokenList, arg1_in: Option<Opera
                 operator: operator1.clone()
             })));
         }
-        let operator2 = operator2.unwrap();
+        let operator2 = operator2.unwrap().clone();
 
         if let TokenType::Operator(_) = operator2.token_type {
 
         }
         else if let TokenType::LParen = operator2.token_type {
-            // Treat it as a function call
+            let pass_arg = OperatorElement::ExpressionTree( Box::new(ExpressionTree{
+                arg1,
+                arg2,
+                operator: operator1.clone()
+            }));
+            return recursive_generate_tree_parenthesis(token_list, Some(pass_arg));
+        }
+        else if let TokenType::RParen = operator2.token_type {
+            return Ok(OperatorElement::ExpressionTree( Box::new(ExpressionTree{
+                arg1,
+                arg2,
+                operator: operator1.clone()
+            })));
         }
         else {
             return Err(CompilerError::from(TokenError::new(operator2.clone(), TokenErrorEnum::ExpectedOperator)))
@@ -150,7 +192,6 @@ pub fn recursive_generate_tree(token_list: &mut TokenList, arg1_in: Option<Opera
             (TokenType::Operator(op1), TokenType::Operator(op2)) => {
                 if op1 < op2 {
                     // Operator 1 should execute first
-                    //prev(linked_list_iter);
                     return Ok(OperatorElement::ExpressionTree( Box::new(ExpressionTree{
                         arg1,
                         arg2,
