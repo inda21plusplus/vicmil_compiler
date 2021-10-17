@@ -28,6 +28,9 @@ fn print_parse_tree(parsed_tree: &OperatorElement, depth: u32) {
             print_parse_tree(&arg.arg, depth);
         }
         OperatorElement::IdentifierOperation(arg) => {
+            print_parse_tree(&arg.arg2, depth);
+            print_parse_tree(&arg.operator, depth+1);
+            println!("call ${} as ${}", depth, depth + 1);
             return;
         }
     }

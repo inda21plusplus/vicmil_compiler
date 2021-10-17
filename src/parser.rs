@@ -32,7 +32,7 @@ impl Parenthesis {
 }
 
 pub struct IdentifierOperation {
-    pub operator: Token,
+    pub operator: OperatorElement,
     pub arg2: OperatorElement,
 }
 impl IdentifierOperation {
@@ -150,20 +150,25 @@ pub fn recursive_generate_tree(token_list: &mut TokenList, arg1_in: Option<Opera
         return Ok(arg1);
     }
     // Check if it is an Identifier operation
-    /*else if let TokenType::IdentifierOrNumber = operator1.token_type {
+    else if let TokenType::IdentifierOrNumber = operator1.token_type {
         // Check if arg1 is an identifier or Identifier operation
-        match arg1 {
-            OperatorElement::Token(Token { token_type: TokenType::IdentifierOrNumber, ..}) => {
-                let arg2 = recursive_generate_tree(token_list, Some(arg1));
+        match &arg1 {
+            OperatorElement::Token(arg1_token) => {
+                if let TokenType::IdentifierOrNumber = arg1_token.token_type {
+                }
+                else {
+                    return Err(CompilerError::from(TokenError::new(operator1.clone(), TokenErrorEnum::ExpectedOperator)))
+                }
             }
             OperatorElement::IdentifierOperation(token) => {
-                let arg2 = recursive_generate_tree(token_list, Some(arg1));
             }
             _ => {
                 return Err(CompilerError::from(TokenError::new(operator1.clone(), TokenErrorEnum::ExpectedOperator)))
             }
         }
-    }*/
+        let pass_arg = Box::new(IdentifierOperation{operator: arg1, arg2:  OperatorElement::Token(operator1)});
+        return recursive_generate_tree(token_list, Some(OperatorElement::IdentifierOperation(pass_arg)));
+    }
     else {
         // Check if it is an Identifier operation
         return Err(CompilerError::from(TokenError::new(operator1.clone(), TokenErrorEnum::ExpectedOperator)))

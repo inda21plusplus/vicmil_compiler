@@ -1,1 +1,1 @@
-q: f32 = c.a(1, b)
+const q = (const c).a(1, b)
