@@ -22,6 +22,7 @@ pub mod compiler_error {
         UnexpectedOperator,
         ExpectedOperator,
         UnexpectedType,
+        InvalidIdentifierOperation
     }
 
     #[derive(Debug)]

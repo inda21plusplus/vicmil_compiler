@@ -236,6 +236,11 @@ pub fn recursive_generate_tree(token_list: &mut TokenList, arg1_in: Option<Opera
                 operator: operator1.clone()
             })));
         }
+        else if let TokenType::IdentifierOrNumber = operator2.token_type {
+            return Err(CompilerError::from(TokenError::new(operator2.clone(), TokenErrorEnum::InvalidIdentifierOperation)));
+            //arg2 = recursive_generate_tree(token_list, Some(arg2))?;
+            //continue;
+        }
         else {
             return Err(CompilerError::from(TokenError::new(operator2.clone(), TokenErrorEnum::ExpectedOperator)))
         }
