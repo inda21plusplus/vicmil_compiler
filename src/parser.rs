@@ -8,10 +8,11 @@ pub enum OperatorElement {
     ExpressionTree(Box<ExpressionTree>),
     Token(Token),
     Parenthesis(Box<Parenthesis>),
+    IdentifierOperation(Box<IdentifierOperation>)
 }
 
 pub struct Parenthesis {
-    arg: OperatorElement,
+    pub arg: OperatorElement,
 }
 impl Parenthesis {
     pub fn to_string(&self) -> String {
@@ -30,6 +31,20 @@ impl Parenthesis {
     }
 }
 
+pub struct IdentifierOperation {
+    pub operator: Token,
+    pub arg2: OperatorElement,
+}
+impl IdentifierOperation {
+    pub fn to_string(&self) -> String {
+        return "(".to_string()
+        + self.operator.to_string().as_str()
+        + " "
+        + self.arg2.to_string().as_str()
+        + ")";
+    }
+}
+
 impl OperatorElement {
     pub fn to_string(&self) -> String {
         match self {
@@ -40,6 +55,9 @@ impl OperatorElement {
                 return token.text.to_string();
             }
             OperatorElement::Parenthesis(token) => {
+                return token.to_string();
+            }
+            OperatorElement::IdentifierOperation ( token ) => {
                 return token.to_string();
             }
         }
@@ -131,7 +149,23 @@ pub fn recursive_generate_tree(token_list: &mut TokenList, arg1_in: Option<Opera
     else if let TokenType::RParen = operator1.token_type {
         return Ok(arg1);
     }
+    // Check if it is an Identifier operation
+    /*else if let TokenType::IdentifierOrNumber = operator1.token_type {
+        // Check if arg1 is an identifier or Identifier operation
+        match arg1 {
+            OperatorElement::Token(Token { token_type: TokenType::IdentifierOrNumber, ..}) => {
+                let arg2 = recursive_generate_tree(token_list, Some(arg1));
+            }
+            OperatorElement::IdentifierOperation(token) => {
+                let arg2 = recursive_generate_tree(token_list, Some(arg1));
+            }
+            _ => {
+                return Err(CompilerError::from(TokenError::new(operator1.clone(), TokenErrorEnum::ExpectedOperator)))
+            }
+        }
+    }*/
     else {
+        // Check if it is an Identifier operation
         return Err(CompilerError::from(TokenError::new(operator1.clone(), TokenErrorEnum::ExpectedOperator)))
     }
 

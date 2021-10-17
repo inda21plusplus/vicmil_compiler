@@ -14,6 +14,25 @@ pub fn test() -> CompilerResult<()> {
 
 use std::fs;
 
+fn print_parse_tree(parsed_tree: &OperatorElement, depth: u32) {
+    match parsed_tree {
+        OperatorElement::ExpressionTree(arg) => {
+            print_parse_tree(&arg.arg1, depth + 1);
+            print_parse_tree(&arg.arg2, depth + 2);
+            println!("${}: ${} {} ${}", depth, depth+1, arg.operator.text, depth+2);
+        }
+        OperatorElement::Token(arg) => {
+            println!("let ${} be {}", depth, arg.text);
+        }
+        OperatorElement::Parenthesis(arg) => {
+            print_parse_tree(&arg.arg, depth);
+        }
+        OperatorElement::IdentifierOperation(arg) => {
+            return;
+        }
+    }
+}
+
 fn main() {
     println!("staring program");
     let data = fs::read_to_string("code.txt").expect("Unable to read file");
@@ -24,7 +43,9 @@ fn main() {
         println!("Error!: {}", parsed_tree.err().unwrap().compiler_err_to_string());
     }
     else {
-        println!("{}", parsed_tree.unwrap().unwrap().to_string());
+        let parsed_tree =  parsed_tree.unwrap().unwrap();
+        print_parse_tree(&parsed_tree, 0);
+        println!("{}",parsed_tree.to_string());
     }
     //println!("{}", data);
     println!("program ended");
