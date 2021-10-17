@@ -7,16 +7,16 @@ use std::collections::linked_list::Iter as LinkedListIter;
 pub enum OperatorElement {
     ExpressionTree(Box<ExpressionTree>),
     Token(Token),
-    OperatorArgs(OperatorArgs)
+    Parenthesis(Parenthesis)
 }
 
-pub struct OperatorArgs {
-    arg_list: LinkedList<OperatorElement>,
+pub struct Parenthesis {
+    arg: Box<ExpressionTree>,
 }
-impl OperatorArgs {
+impl Parenthesis {
     pub fn to_string(&self) -> String {
         let mut text = String::from("(");
-        let mut iter_num = 0;
+        /*let mut iter_num = 0;
         for i in self.arg_list.iter() {
             if iter_num != 0 {
                 text += ", ";
@@ -24,7 +24,7 @@ impl OperatorArgs {
             text += i.to_string().as_str();
             iter_num += 1;
         }
-        text += ")";
+        text += ")";*/
         return text;
     }
 }
@@ -38,7 +38,7 @@ impl OperatorElement {
             OperatorElement::Token(token) => {
                 return token.text.to_string();
             }
-            OperatorElement::OperatorArgs(token) => {
+            OperatorElement::Parenthesis(token) => {
                 return token.to_string();
             }
         }

@@ -103,10 +103,7 @@ pub enum TokenType {
     RCurrBracket,
     Identifier,
     Number,
-    Dot,
-    Comma,
     Semicolon,
-    Colon
 }
 
 pub fn tokenize(text: &str) -> TokenExpressions {
@@ -129,30 +126,40 @@ pub fn tokenize(text: &str) -> TokenExpressions {
                 curr_token_list.add_token_from_text(curr_text, TokenType::IdentifierOrNumber, line_num, col_num);
                 curr_text = String::from("");
             }
-            '/' | '*' => {
+            '.' => {
                 curr_token_list.add_token_from_text(curr_text, TokenType::IdentifierOrNumber, line_num, col_num);
                 curr_text = String::from("");
                 curr_token_list.add_token_from_text(i_char.to_string(), TokenType::Operator(0), line_num, col_num);
             }
-            '+' | '-' => {
+            '/' | '*' => {
                 curr_token_list.add_token_from_text(curr_text, TokenType::IdentifierOrNumber, line_num, col_num);
                 curr_text = String::from("");
                 curr_token_list.add_token_from_text(i_char.to_string(), TokenType::Operator(1), line_num, col_num);
             }
-            '!' | '|' | '&' | '>' | '<' => {
+            '+' | '-' => {
                 curr_token_list.add_token_from_text(curr_text, TokenType::IdentifierOrNumber, line_num, col_num);
                 curr_text = String::from("");
                 curr_token_list.add_token_from_text(i_char.to_string(), TokenType::Operator(2), line_num, col_num);
             }
-            '.' => {
+            '!' | '|' | '&' | '>' | '<' => {
                 curr_token_list.add_token_from_text(curr_text, TokenType::IdentifierOrNumber, line_num, col_num);
                 curr_text = String::from("");
-                curr_token_list.add_token_from_text(i_char.to_string(), TokenType::Dot, line_num, col_num);
+                curr_token_list.add_token_from_text(i_char.to_string(), TokenType::Operator(3), line_num, col_num);
             }
             ',' => {
                 curr_token_list.add_token_from_text(curr_text, TokenType::IdentifierOrNumber, line_num, col_num);
                 curr_text = String::from("");
-                curr_token_list.add_token_from_text(i_char.to_string(), TokenType::Comma, line_num, col_num);
+                curr_token_list.add_token_from_text(i_char.to_string(), TokenType::Operator(4), line_num, col_num);
+            }
+            ':' => {
+                curr_token_list.add_token_from_text(curr_text, TokenType::IdentifierOrNumber, line_num, col_num);
+                curr_text = String::from("");
+                curr_token_list.add_token_from_text(i_char.to_string(), TokenType::Operator(5), line_num, col_num);
+            }
+            '=' => {
+                curr_token_list.add_token_from_text(curr_text, TokenType::IdentifierOrNumber, line_num, col_num);
+                curr_text = String::from("");
+                curr_token_list.add_token_from_text(i_char.to_string(), TokenType::Operator(6), line_num, col_num);
             }
             ';' => {
                 curr_token_list.add_token_from_text(curr_text, TokenType::IdentifierOrNumber, line_num, col_num);
@@ -164,11 +171,6 @@ pub fn tokenize(text: &str) -> TokenExpressions {
                     token_expressions.token_lists.push_back(curr_token_list);
                     curr_token_list = TokenList::new();
                 }
-            }
-            ':' => {
-                curr_token_list.add_token_from_text(curr_text, TokenType::IdentifierOrNumber, line_num, col_num);
-                curr_text = String::from("");
-                curr_token_list.add_token_from_text(i_char.to_string(), TokenType::Colon, line_num, col_num);
             }
             '(' => {
                 curr_token_list.add_token_from_text(curr_text, TokenType::IdentifierOrNumber, line_num, col_num);

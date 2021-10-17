@@ -1,1 +1,1 @@
-3 > x + y * z * ab + c
+m: 10 = 3 > x + y * z * ab.func.func2 + c
