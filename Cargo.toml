@@ -8,3 +8,7 @@ edition = "2018"
 
 [dependencies]
 trait_enum = "0.5.0"
+cranelift = "0.69.0"
+cranelift-module = "0.69.0"
+cranelift-jit = "0.69.0"
+peg = "0.6"

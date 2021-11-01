@@ -1,4 +1,4 @@
-use std::collections::LinkedList;
+/*use std::collections::LinkedList;
 
 
 pub struct TokenExpressions {
@@ -182,6 +182,7 @@ pub fn tokenize(text: &str) -> TokenExpressions {
                 curr_text = String::from("");
                 curr_token_list.add_token_from_text(i_char.to_string(), TokenType::RParen, line_num, col_num);
             }
+            // Make into new scope
             '{' => {
                 curr_token_list.add_token_from_text(curr_text, TokenType::IdentifierOrNumber, line_num, col_num);
                 curr_text = String::from("");
@@ -206,4 +207,4 @@ pub fn tokenize(text: &str) -> TokenExpressions {
         curr_token_list = TokenList::new();
     }
     return token_expressions;
-}
+}*/

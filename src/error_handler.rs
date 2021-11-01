@@ -1,6 +1,6 @@
 pub mod compiler_error {
     use trait_enum::*;
-    use crate::tokenizer::*;
+    use crate::lexer::*;
     #[allow(dead_code)]
     pub type CompilerResult<T> = std::result::Result<T, CompilerError>;
 

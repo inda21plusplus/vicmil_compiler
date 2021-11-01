@@ -1,4 +1,91 @@
-use crate::tokenizer::*;
+use std::{collections::LinkedList, default};
+
+use crate::TokenList;
+
+enum ScopeType {
+    Scope,
+    Parenthesis
+}
+
+pub struct Attribute {
+    pub type_: String,
+}
+
+struct ScopeDictionary {
+    pub scope_type: LinkedList<ScopeType>,
+    attributes: LinkedList<std::collections::HashMap<String, Attribute>>,
+}
+
+impl ScopeDictionary {
+    pub fn new() -> Self {
+        Self {
+            scope_type: LinkedList::new(),
+            attributes: LinkedList::new()
+        }
+    }
+    pub fn new_scope(&mut self, scope_type: ScopeType) {
+        self.scope_type.push_front(scope_type);
+        self.attributes.push_front(std::collections::HashMap::new());
+    }
+    pub fn undo_scope(&mut self) {
+        self.scope_type.pop_front();
+        self.attributes.pop_front();
+    }
+    pub fn scope_type(&mut self) -> &mut ScopeType {
+        return self.scope_type.front_mut().unwrap();
+    }
+    pub fn insert(&mut self, key: String, attr: Attribute) {
+        self.attributes.front_mut().unwrap().insert(key, attr);
+    }
+    pub fn get(&mut self, key: &String) -> Option<&mut Attribute> {
+        for i in self.attributes.iter_mut() {
+            if i.contains_key(key) {
+                return i.get_mut(key);
+            }
+        }
+        return None;
+    }
+}
+
+fn parse_let_pattern() {
+
+}
+
+fn parse_fn_pattern() {
+    
+}
+
+fn parse_struct_pattern() {
+
+}
+
+fn parse_for_pattern() {
+
+}
+
+fn parse_expression_pattern() {
+
+}
+
+pub fn parse(tokens: &mut TokenList) {
+    let mut dictionary = ScopeDictionary::new();
+    dictionary.new_scope(ScopeType::Scope);
+    dictionary.insert("some text".to_string(), Attribute { type_: "cool type".to_string() });
+    let attr = dictionary.get(&"some text".to_string());
+    println!("{}", attr.unwrap().type_);
+    dictionary.new_scope(ScopeType::Scope);
+    let attr = dictionary.get(&"some text".to_string());
+    println!("{}", attr.unwrap().type_);
+    dictionary.insert("some other".to_string(), Attribute { type_: "cool other".to_string() });
+    let attr = dictionary.get(&"some other".to_string());
+    println!("{}", attr.unwrap().type_);
+    dictionary.undo_scope();
+    let attr = dictionary.get(&"some other".to_string());
+    println!("{}", attr.unwrap().type_);
+
+}
+
+/*use crate::tokenizer::*;
 use crate::error_handler::compiler_error::*;
 use std::borrow::Borrow;
 use std::collections::LinkedList;
@@ -288,3 +375,4 @@ pub fn generate_tree(token_list: &mut TokenList) -> CompilerResult<Option<Operat
     return Ok(arg1);
 }
 
+*/

@@ -2,11 +2,14 @@ pub mod error_handler;
 pub mod tokenizer;
 pub mod parser;
 pub mod test;
+pub mod lexer;
+pub mod jit;
 
 pub use crate::error_handler::compiler_error::*;
 pub use crate::error_handler::compiler_error::CompilerError::*;
 pub use crate::parser::*;
-use crate::tokenizer::tokenize;
+pub use crate::lexer::*;
+pub use jit::*;
 
 pub fn test() -> CompilerResult<()> {
     return Err(CompilerError::from("error"));
@@ -14,7 +17,7 @@ pub fn test() -> CompilerResult<()> {
 
 use std::fs;
 
-fn print_parse_tree(parsed_tree: &OperatorElement, depth: u32) {
+/*fn print_parse_tree(parsed_tree: &OperatorElement, depth: u32) {
     match parsed_tree {
         OperatorElement::ExpressionTree(arg) => {
             print_parse_tree(&arg.arg1, depth + 1);
@@ -22,7 +25,7 @@ fn print_parse_tree(parsed_tree: &OperatorElement, depth: u32) {
             println!("${}: ${} {} ${}", depth, depth+1, arg.operator.text, depth+2);
         }
         OperatorElement::Token(arg) => {
-            println!("let ${} be {}", depth, arg.text);
+            println!("let ${} be '{}'", depth, arg.text);
         }
         OperatorElement::Parenthesis(arg) => {
             print_parse_tree(&arg.arg, depth);
@@ -34,14 +37,15 @@ fn print_parse_tree(parsed_tree: &OperatorElement, depth: u32) {
             return;
         }
     }
-}
+}*/
 
 fn main() {
-    println!("staring program");
+    /*println!("staring program");
     let data = fs::read_to_string("code.txt").expect("Unable to read file");
     let mut tokanized_text = tokenize(&data);
     println!("{}", tokanized_text.to_string());
-    let parsed_tree = generate_tree(tokanized_text.token_lists.front_mut().unwrap());
+    parse(&mut tokanized_text);*/
+    /*let parsed_tree = generate_tree(tokanized_text.token_lists.front_mut().unwrap());
     if parsed_tree.is_err() {
         println!("Error!: {}", parsed_tree.err().unwrap().compiler_err_to_string());
     }
@@ -50,6 +54,8 @@ fn main() {
         print_parse_tree(&parsed_tree, 0);
         println!("{}",parsed_tree.to_string());
     }
-    //println!("{}", data);
-    println!("program ended");
+    //println!("{}", data);*/
+    let mut jit = jit::JIT::default();
+    jit.run_code();
+    println!("Program finished!");
 }
