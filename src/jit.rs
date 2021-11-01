@@ -22,11 +22,18 @@ pub struct JIT {
     /// The module, with the jit backend, which manages the JIT'd
     /// functions.
     module: JITModule,
+
+
 }
 
 impl Default for JIT {
     fn default() -> Self {
-        let builder = JITBuilder::new(cranelift_module::default_libcall_names());
+        let mut builder = JITBuilder::new(cranelift_module::default_libcall_names());
+
+        // Register hello worbuilderld print function.
+        let print_addr = print_hello_world as *const u8;
+        builder.symbol("print_hello_world", print_addr);
+
         let module = JITModule::new(builder);
         Self {
             builder_context: FunctionBuilderContext::new(),
@@ -35,6 +42,10 @@ impl Default for JIT {
             module,
         }
     }
+}
+
+pub fn print_hello_world() -> () {
+    println!("{}", "hello world!");
 }
 
 impl JIT {
@@ -81,6 +92,26 @@ impl JIT {
             variables,
             module: &mut self.module,
         };
+
+        let mut sig = trans.module.make_signature();
+        sig.params.push(AbiParam::new(int));
+        sig.returns.push(AbiParam::new(int));
+
+        let the_arg = "some_var_name".to_string();
+        let arg_var = trans.variables.get(&the_arg).unwrap();
+        let arg_val = trans.builder.use_var(*arg_var);
+
+        let callee = trans
+            .module
+            .declare_function("print_hello_world", cranelift_module::Linkage::Import, &sig)
+            .map_err(|e| e.to_string()).unwrap();
+
+        let local_callee = trans
+            .module
+            .declare_func_in_func(callee, &mut trans.builder.func);
+
+        let call = trans.builder.ins().call(local_callee, &[arg_val]);
+        /*let res = trans.builder.inst_results(call)[0];*/
 
         // Set up the return variable of the function. Above, we declared a
         // variable to hold the return value. Here, we just do a use of that
@@ -133,7 +164,9 @@ impl JIT {
             let result: O = ();
             let code_fn = mem::transmute::<_, fn(I) -> O>(code_ptr);
             // And now we can call it!
+            println!("Calling Program!:");
             code_fn(input);
+            println!(":Program ended!");
         }
     }
 }
