@@ -1,6 +1,8 @@
+use cranelift::codegen::CodegenError;
+use cranelift::codegen::verifier::{VerifierError, VerifierErrors};
 use cranelift::prelude::*;
 use cranelift_jit::{JITBuilder, JITModule};
-use cranelift_module::{DataContext, Linkage, Module};
+use cranelift_module::{DataContext, FuncId, Linkage, Module, ModuleError};
 use std::collections::HashMap;
 use std::{result, slice};
 use core::mem;
@@ -49,8 +51,136 @@ pub fn print_hello_world() -> () {
 }
 
 impl JIT {
+    pub fn declare_call_function(&mut self) -> FuncId {
+        // Declare a variable type to use for input and return
+        let int = self.module.target_config().pointer_type();
+
+        // Not sure the difference between these...
+        // Create new context, that will contain all info about the function
+        let mut ctx = self.module.make_context();
+        ctx.func.signature.returns.push(AbiParam::new(int));
+        // Create the function building context, needed to build function
+        let mut builder_context = FunctionBuilderContext::new();
+        // Create the builder to build the function.
+        let mut builder = FunctionBuilder::new(&mut ctx.func, &mut builder_context);
+
+        // Create block, to start emitting code in.
+        let entry_block = builder.create_block();
+
+        // Since this is the entry block, add block parameters corresponding to
+        // the function's parameters.
+        builder.append_block_params_for_function_params(entry_block);
+
+        // Tell the builder to emit code in this block.
+        builder.switch_to_block(entry_block);
+
+        // And, tell the builder that this block will have no further
+        // predecessors. Since it's the entry block, it won't have any
+        // predecessors.
+        builder.seal_block(entry_block);
+
+        // Declare variable to hold variables
+        let variables: HashMap<String, Variable> = HashMap::new();
+
+        // Declare return variable
+        let mut variables = HashMap::new();
+        let var = Variable::new(0);
+        let name = "some_var_name";
+
+        if !variables.contains_key(name) {
+            variables.insert(name.into(), var);
+            builder.declare_var(var, int);
+        }
+
+        // Now translate the statements of the function body. (By inserting instructions into trans)
+        let mut trans = FunctionTranslator {
+            int,
+            builder,
+            variables,
+            module: &mut self.module,
+        };
+
+        let mut sig = trans.module.make_signature();
+        sig.params.push(AbiParam::new(int));
+        sig.returns.push(AbiParam::new(int));
+
+        let the_arg = "some_var_name".to_string();
+        let arg_var = trans.variables.get(&the_arg).unwrap();
+        let arg_val = trans.builder.use_var(*arg_var);
+
+        let callee = trans
+            .module
+            .declare_function("print_hello_world", cranelift_module::Linkage::Import, &sig)
+            .map_err(|e| e.to_string()).unwrap();
+
+        let local_callee = trans
+            .module
+            .declare_func_in_func(callee, &mut trans.builder.func);
+
+        let call = trans.builder.ins().call(local_callee, &[arg_val]);
+        let call = trans.builder.ins().call(local_callee, &[arg_val]);
+
+         // Insert the type of input and output of the function
+         let mut sig = trans.module.make_signature();
+         sig.params.push(AbiParam::new(int));
+         sig.returns.push(AbiParam::new(int));
+
+        /*// Declare return variable
+        let var = Variable::new(0);
+        let name = "return_var";
+        if !trans.variables.contains_key(name) {
+            trans.variables.insert(name.into(), var);
+            trans.builder.declare_var(var, int);
+        }*/
+        let return_value = trans.builder.use_var(var);
+
+        // Insert the return instruction.
+        trans.builder.ins().return_(&[return_value]);
+
+        // Tell the builder we're done with this function.
+        trans.builder.finalize();
+
+        // Declare the function using the context, so that it can be called
+        let name = String::from("some_other_func");
+        let id = self
+            .module
+            .declare_function(&name, Linkage::Export, &ctx.func.signature)
+            .map_err(|e| e.to_string()).unwrap();
+
+        // Define the function, not sure what it does
+        let result = self.module
+        .define_function(id, &mut ctx, &mut codegen::binemit::NullTrapSink {})
+        .map_err(|e| e.to_string());
+
+        // Make sure it does not give any errors
+        if result.is_err() {
+            println!("{}", result.err().unwrap() );
+            panic!();
+        }
+
+        /*let other_func_local_callee = self
+            .module
+            .declare_func_in_func(id, &mut builder.func);*/
+
+        return id;
+    }
     pub fn run_code(&mut self) {
         let int = self.module.target_config().pointer_type();
+
+        let other_func_id = self.declare_call_function();
+        /*// Insert the type of input and output of the function
+        let mut sig = self.module.make_signature();
+        sig.params.push(AbiParam::new(int));
+        sig.returns.push(AbiParam::new(int));
+
+        // Create `ExternalName` from a string.
+        let name = ExternalName::testcase("some_other_func");*/
+
+
+        //let other_func_call = self.module.define_function(other_func_id, &mut self.ctx, &mut codegen::binemit::NullTrapSink {});
+        //other_func_call.unwrap()
+        //let func_data = cranelift::prelude::ExtFuncData{name: name, signature: sig , colocated: false};
+
         // Our toy language currently only supports one return value, though
         // Cranelift is designed to support more.
         self.ctx.func.signature.returns.push(AbiParam::new(int));
@@ -63,8 +193,6 @@ impl JIT {
 
         // Since this is the entry block, add block parameters corresponding to
         // the function's parameters.
-        //
-        // TODO: Streamline the API here.
         builder.append_block_params_for_function_params(entry_block);
 
         // Tell the builder to emit code in this block.
@@ -111,7 +239,16 @@ impl JIT {
             .declare_func_in_func(callee, &mut trans.builder.func);
 
         let call = trans.builder.ins().call(local_callee, &[arg_val]);
+
         /*let res = trans.builder.inst_results(call)[0];*/
+
+        //let call_func = self.module
+
+        let other_func_local_callee = trans
+            .module
+            .declare_func_in_func(other_func_id, &mut trans.builder.func);
+
+        let call = trans.builder.ins().call(other_func_local_callee, &[]);
 
         // Set up the return variable of the function. Above, we declared a
         // variable to hold the return value. Here, we just do a use of that
@@ -135,11 +272,19 @@ impl JIT {
             .map_err(|e| e.to_string()).unwrap();
 
         let result = self.module
-        .define_function(id, &mut self.ctx, &mut codegen::binemit::NullTrapSink {})
-        .map_err(|e| e.to_string());
+        .define_function(id, &mut self.ctx, &mut codegen::binemit::NullTrapSink {});
 
         if result.is_err() {
-            println!("{}", result.err().unwrap() );
+            //VerifierError{location, context, message};
+            if let ModuleError::Compilation(CodegenError::Verifier(VerifierErrors{0: verifier_errors} )) = result.err().unwrap() {
+                for i in verifier_errors.iter() {
+                    println!("{}", i.message);
+                    println!("{}", i.context.as_ref().unwrap_or(&"".to_string()));
+                    println!("{}", i.location);
+                }
+            }
+            //println!("{}", result.err().unwrap().to_string() );
+            //println!("{}", result.err().unwrap().to_string() );
             panic!();
         }
 
