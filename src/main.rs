@@ -55,7 +55,8 @@ fn main() {
         println!("{}",parsed_tree.to_string());
     }
     //println!("{}", data);*/
-    let mut jit = jit::JIT::default();
-    jit.run_code();
+    //let mut jit = jit::JIT::default();
+    //jit.run_code();
+    compile_code("return_var = 2 x = 4 return_var += x".to_string());
     println!("Program finished!");
 }
