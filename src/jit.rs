@@ -369,6 +369,11 @@ pub fn recursive_generate_tree(tokens: &mut TokenList, arg1_input: Option<Expr>)
                 }
                 return Ok(Expr::Operation(Operation{expr1: Box::new(arg1), expr2: Box::new(arg2.unwrap()), operator: operator}));
             }
+            else if token.op_type.type_number() >= operator.op_type.type_number() {
+                let this_expr = Expr::Operation(Operation{expr1: Box::new(arg1), expr2: Box::new(arg2), operator: operator});
+                let result = recursive_generate_tree(tokens, Some(this_expr));
+                return result;
+            }
         }
         Some(Token::EndExpr) | None => {
             tokens.curr += 1;
@@ -527,7 +532,7 @@ pub fn cranelift_treverse_tree(expr_tree: &Vec<Expr>) -> Result<(JIT, FuncId), S
                             Expr::IdentifierToken(token) => {
                                 // Get the value to use
                                 let val2 = cranelift_recursive_treverse_tree(&op_token.expr2, &mut trans);
-                                
+
                                 // Get the variable to assign to
                                 let name = token.text.as_str();
                                 if !trans.variables.contains_key(name) {
@@ -538,11 +543,20 @@ pub fn cranelift_treverse_tree(expr_tree: &Vec<Expr>) -> Result<(JIT, FuncId), S
                                 }
                                 let var1 = trans.variables.get(name).unwrap();
 
-
                                 // Perform the operation
                                 match op_type {
                                     OpType2::Eq => {
                                         trans.builder.def_var(*var1, val2.unwrap());
+                                    }
+                                    OpType2::AddEq => {
+                                        let val1 = trans.builder.use_var(*var1);
+                                        let result = trans.builder.ins().iadd(val1, val2.unwrap());
+                                        trans.builder.def_var(*var1, result);
+                                    }
+                                    OpType2::SubEq => {
+                                        let val1 = trans.builder.use_var(*var1);
+                                        let result = trans.builder.ins().isub(val1, val2.unwrap());
+                                        trans.builder.def_var(*var1, result);
                                     }
                                     _ => {
                                         println!("Not implemented yet!");
@@ -675,9 +689,6 @@ pub fn compile_code(my_str: String) {
 
     // Generate expression tree
     let tree = generate_tree(&mut token_list);
-    for i in tree.as_ref().unwrap() {
-        println!("{}", i.to_string());
-    }
 
     // Treverse tree with cranelift to generate executable function
     let (jit, id) = cranelift_treverse_tree(&tree.unwrap()).unwrap();
