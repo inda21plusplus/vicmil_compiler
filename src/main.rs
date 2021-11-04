@@ -57,6 +57,6 @@ fn main() {
     //println!("{}", data);*/
     //let mut jit = jit::JIT::default();
     //jit.run_code();
-    compile_code("return_var = 2 x = 4 return_var += x".to_string());
+    compile_code("x = 7 ; x = x + 10 * 5 ; return_var = x ; x = 3".to_string());
     println!("Program finished!");
 }

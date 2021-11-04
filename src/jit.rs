@@ -8,27 +8,146 @@ use std::collections::HashMap;
 use std::{result, slice};
 use core::mem;
 
+pub enum Expr {
+    Operation(Operation),
+    IdentifierToken(IdentifierToken),
+    NumberToken(NumberToken),
+    Empty
+}
+
+impl Expr {
+    pub fn to_string(&self) -> String {
+        match &self {
+            Expr::IdentifierToken(token) => {
+                return token.text.clone();
+            }
+            Expr::NumberToken(token) => {
+                return token.num.to_string();
+            }
+            Expr::Operation(token) => {
+                let arg1 = token.expr1.to_string();
+                let arg2 = token.expr2.to_string();
+                let operator = "Operator".to_string();
+                let mut return_string = "(".to_string();
+                return_string += arg1.as_str();
+                return_string += " ";
+                return_string += operator.as_str();
+                return_string += " ";
+                return_string += arg2.as_str();
+                return_string += ")";
+
+                return return_string;
+            }
+            Expr::Empty => {
+                return "Empty".to_string();
+            }
+        }
+    }
+}
+pub struct Operation {
+    expr1: Box<Expr>,
+    operator: OperatorToken,
+    expr2: Box<Expr>
+}
+
+#[derive(Debug, Clone)]
 pub enum Token {
     IdentifierToken(IdentifierToken),
     NumberToken(NumberToken),
-    OperatorToken(OperatorToken)
+    OperatorToken(OperatorToken),
+    EndExpr,
 }
 
+impl Token {
+    pub fn to_string(&self) -> String {
+        match self {
+            Token::IdentifierToken(token) => {
+                return "Identifier".to_string();
+            }
+            Token::NumberToken(token) => {
+                return "Number".to_string();
+            }
+            Token::OperatorToken(token) => {
+                return "Operator".to_string();
+            }
+            Token::EndExpr => {
+                return "EndExpr".to_string();
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct IdentifierToken {
     pub text: String
 }
 
+#[derive(Debug, Clone)]
 pub struct NumberToken {
     pub num: i32
 }
 
-pub enum OperatorType {
+#[derive(Debug, Clone)]
+pub enum OpType0 {
+    Div,
+    Mul,
+}
+
+#[derive(Debug, Clone)]
+pub enum OpType1 {
     Add,
     Sub,
-    Eq
 }
+
+#[derive(Debug, Clone)]
+pub enum OpType2 {
+    Eq,
+    AddEq,
+    SubEq
+}
+
+
+#[derive(Debug, Clone)]
+pub enum OperatorType {
+    OpType0(OpType0),
+    OpType1(OpType1),
+    OpType2(OpType2)
+}
+
+impl OperatorType {
+    pub fn type_number(&self) -> usize {
+        match self {
+            OperatorType::OpType0(..) => {
+                return 0;
+            }
+            OperatorType::OpType1(..) => {
+                return 1;
+            }
+            OperatorType::OpType2(..) => {
+                return 2;
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct OperatorToken {
     pub op_type: OperatorType
+}
+
+pub fn is_end_of_expression(my_str: String) -> Option<Token> {
+    if my_str.len() == 0 {
+        return None;
+    }
+    match my_str.as_str() {
+        ";" => {
+            return Some(Token::EndExpr);
+        }
+        _ => {
+            return None;
+        }
+    }
+    
 }
 
 pub fn is_number(my_str: String) -> Option<NumberToken> {
@@ -76,9 +195,13 @@ pub fn is_identifier(my_str: String) -> Option<IdentifierToken> {
 pub fn is_operator(my_str: String) -> Option<OperatorToken> {
     let op_type: OperatorType;
     match my_str.as_str() {
-        "+=" => { op_type = OperatorType::Add; }
-        "-=" => { op_type = OperatorType::Sub; }
-        "=" => { op_type = OperatorType::Eq; }
+        "+=" => { op_type = OperatorType::OpType2(OpType2::AddEq); }
+        "-=" => { op_type = OperatorType::OpType2(OpType2::AddEq); }
+        "=" => { op_type = OperatorType::OpType2(OpType2::Eq); }
+        "+" => { op_type = OperatorType::OpType1(OpType1::Add); }
+        "-" => { op_type = OperatorType::OpType1(OpType1::Sub); }
+        "*" => { op_type = OperatorType::OpType0(OpType0::Mul); }
+        "/" => { op_type = OperatorType::OpType0(OpType0::Div); }
         _ => { return None; }
     }
     return Some(OperatorToken{op_type: op_type});
@@ -125,31 +248,215 @@ pub fn print_hello_world() -> () {
     println!("{}", "hello world!");
 }
 
-pub fn compile_code(my_str: String) {
-    // Use the lexer to split up string into tokens
-    let mut token_vec: Vec<Token> = vec!();
-    let split_str = my_str.split_ascii_whitespace();
-    for i in split_str.into_iter() {
-        if let Some(token) = is_operator(i.to_string()) {
-            println!("operator: {}", i);
-            token_vec.push(Token::OperatorToken(token));
+pub struct TokenList {
+    tokens: Vec<Token>,
+    curr: usize
+}
+
+impl TokenList {
+    pub fn new() -> TokenList {
+        TokenList { tokens: vec!(), curr: 0 }
+    }
+    pub fn get_curr(&self) -> Option<Token> {
+        if self.is_end() {
+            return None;
         }
-        else if let Some(token) = is_number(i.to_string()) {
-            println!("number: {}", i);
-            token_vec.push(Token::NumberToken(token));
+        return Some(self.tokens[self.curr].clone());
+    }
+    // Get the current token and go to next token
+    pub fn get_curr_inc(&mut self) -> Option<Token> { // Get the current and icrement pointer
+        if self.is_end() {
+            return None;
         }
-        else if let Some(token) = is_identifier(i.to_string()) {
-            println!("identifier: {}", i);
-            token_vec.push(Token::IdentifierToken(token));
+        let curr_token = Some(self.tokens[self.curr].clone());
+        self.curr += 1;
+        return curr_token;
+    }
+    pub fn inc_curr(&mut self) {
+        self.curr += 1;
+    }
+    pub fn is_end(&self) -> bool {
+        if self.curr >= self.tokens.len() {
+            return true;
         }
         else {
-            println!("undefined: {}", i);
+            return false;
+        }
+    }
+    pub fn get(&mut self, i: usize) -> Option<Token> {
+        if i >= self.tokens.len() {
+            return None;
+        }
+        else {
+            return Some(self.tokens[i].clone());
+        }
+    }
+    pub fn to_string(&self) -> String {
+        let mut return_str = "{".to_string();
+        for i in 0..self.tokens.len() {
+            if i != 0 {
+                return_str += ", ";
+            }
+            return_str += self.tokens[i].to_string().as_str();
+        }
+        return_str += "}";
+        return return_str;
+    }
+}
+
+pub fn recursive_generate_tree(tokens: &mut TokenList, arg1_input: Option<Expr>) -> Result<Expr, String> {
+    let arg1: Expr;
+    if arg1_input.is_some() {
+        arg1 = arg1_input.unwrap()
+    }
+    else {
+        match tokens.get_curr_inc() {
+            Some(Token::IdentifierToken(token)) => {
+                arg1 = Expr::IdentifierToken(token);
+            }
+            Some(Token::NumberToken(token)) => {
+                arg1 = Expr::NumberToken(token);
+            }
+            Some(Token::EndExpr) | None => {
+                tokens.curr += 1;
+                if arg1_input.is_some() {
+                    return Ok(arg1_input.unwrap())
+                }
+                return Ok(Expr::Empty);
+            }
+            _ => {
+                return Err("invalid type".to_string());
+            }
+        }
+    }
+    let operator: OperatorToken;
+    match tokens.get_curr_inc() {
+        Some(Token::OperatorToken(token)) => {
+            operator = token;
+        }
+        Some(Token::EndExpr) | None => {
+            return Ok(arg1);
+        }
+        _ => {
+            return Err("invalid operator".to_string());
         }
     }
 
-    // Parse the string, ( TODO generate a tree)
-    // add what it should do to cranelift, (TODO: Treverse tree) 
+    let arg2: Expr;
+    match tokens.get_curr_inc() {
+        Some(Token::IdentifierToken(token)) => {
+            arg2 = Expr::IdentifierToken(token);
+        }
+        Some(Token::NumberToken(token)) => {
+            arg2 = Expr::NumberToken(token);
+        }
+        Some(Token::EndExpr) | None => {
+            return Err("expected identifier after operator".to_string());;
+        }
+        _ => {
+            return Err("invalid identifier".to_string());
+        }
+    }
 
+    // To see if the next operator should execute first
+    match tokens.get(tokens.curr) {
+        Some(Token::OperatorToken(token)) => {
+            // The next operator should execute first
+            if token.op_type.type_number() < operator.op_type.type_number() {
+                let arg2 = recursive_generate_tree(tokens, Some(arg2));
+                if arg2.is_err() {
+                    return arg2;
+                }
+                return Ok(Expr::Operation(Operation{expr1: Box::new(arg1), expr2: Box::new(arg2.unwrap()), operator: operator}));
+            }
+        }
+        Some(Token::EndExpr) | None => {
+            tokens.curr += 1;
+            return Ok(Expr::Operation(Operation{expr1: Box::new(arg1), expr2: Box::new(arg2), operator: operator}));
+        }
+        _ => {
+            return Err("invalid operator".to_string());
+        }
+    }
+    return Ok(arg1);
+}
+
+pub fn generate_tree(tokens: &mut TokenList) -> Result<Vec<Expr>, String> {
+    let mut return_vec: Vec<Expr> = vec!();
+    while !tokens.is_end() {
+        let expr = recursive_generate_tree(tokens, None);
+        match expr {
+            Err(err) => {
+                return Err(err);
+            }
+            Ok(Expr::Empty) => {
+                continue;
+            }
+            _ => {
+                println!("{}", expr.as_ref().unwrap().to_string());
+                return_vec.push(expr.unwrap());
+            }
+        }
+    }
+    return Ok(return_vec)
+}
+
+pub fn cranelift_recursive_treverse_tree(expr: &Expr, trans: &mut FunctionTranslator) -> Result<Value, String> { // Returns a value
+    use cranelift::prelude::types::I32;
+    match expr {
+        Expr::IdentifierToken(token) => {
+            // Get the identifier value and return it
+            let var1 = trans.variables.get(token.text.as_str()).unwrap();
+            let val1 = trans.builder.use_var(*var1);
+            return Ok(val1);
+        }
+        Expr::NumberToken(token) => {
+            // Get the number value and return it
+            let num = token.num as i64;
+            let val1 = trans.builder.ins().iconst(I32, num);
+            return Ok(val1);
+
+        }
+        Expr::Operation(token) => {
+            // Get the first value
+            let val1 = cranelift_recursive_treverse_tree(&token.expr1, trans);
+
+            // Get the second value
+            let val2= cranelift_recursive_treverse_tree(&token.expr2, trans);
+
+            // Match operator and perform operation
+            match token.operator.op_type {
+                OperatorType::OpType2(..) => {
+                    // You cannot parse =, +=, -= inside expression
+                    return Err("Cannot parse assign operation inside expression!".to_string());
+                }
+                OperatorType::OpType0(OpType0::Mul) => {
+                    // You cannot parse =, +=, -= inside expression
+                    let result = trans.builder.ins().imul(val1.unwrap(), val2.unwrap());
+                    return Ok(result)
+                }
+                OperatorType::OpType1(OpType1::Add) => {
+                    // Add values
+                    let result = trans.builder.ins().iadd(val1.unwrap(), val2.unwrap());
+                    return Ok(result)
+                }
+                OperatorType::OpType1(OpType1::Sub) => {
+                    // Subtract values
+                    let result = trans.builder.ins().isub(val1.unwrap(), val2.unwrap());
+                    return Ok(result)
+                }
+                _ => {
+                    return Err("Operator implemented yet!".to_string());
+                }
+            }
+        }
+        _ => {
+            return Err("Could not parse expression".to_string());
+        }
+    }
+}
+
+pub fn cranelift_treverse_tree(expr_tree: &Vec<Expr>) -> Result<(JIT, FuncId), String> {
     // Create the jit
     let mut jit = JIT::default();
 
@@ -178,11 +485,10 @@ pub fn compile_code(my_str: String) {
     // predecessors.
     builder.seal_block(entry_block);
 
-    // Declare variable to hold variables in function
-    let variables: HashMap<String, Variable> = HashMap::new();
-
-    // Declare return variable
+    // Declare variables variable
     let mut variables: HashMap<String, Variable> = HashMap::new();
+
+    // Declare a variable for returning stuff
     let var = Variable::new(0);
     let name = "return_var";
 
@@ -194,7 +500,7 @@ pub fn compile_code(my_str: String) {
 
     // Create a struct to keep track of variables used to create the function
     // (translate your own code of your language into cranelift)
-    let mut trans = FunctionTranslator {
+    let mut trans: FunctionTranslator = FunctionTranslator {
         int,
         builder,
         variables,
@@ -206,105 +512,60 @@ pub fn compile_code(my_str: String) {
     sig.params.push(AbiParam::new(int));
     sig.returns.push(AbiParam::new(I32));
 
-
     let mut var_iter = 1;
-    // Parse the code from the custom language
-    if token_vec.len() >= 3 {
-        for i in 0..token_vec.len()-2 {
-            let token1: &Token = token_vec.get(i).unwrap();
-            let token2: &Token = token_vec.get(i+1).unwrap();
-            let token3: &Token = token_vec.get(i+2).unwrap();
-            if let Token::IdentifierToken(token1_ident) = token1 {
-                if let Token::OperatorToken(token2_ident) = token2 {
-                    if let Token::IdentifierToken(token3_ident) = token3 {
-                        // Make sure the second variable is defined
-                        if !trans.variables.contains_key(token3_ident.text.as_str()) {
-                            println!("Variable not defined: {}, skipping", token3_ident.text);
-                            continue;
-                        }
 
-                        // Declare the first variable if it is not already defined
-                        if !trans.variables.contains_key(token1_ident.text.as_str()) {
-                            let var = Variable::new(var_iter);
-                            var_iter += 1;
-                            trans.variables.insert(token1_ident.text.as_str().into(), var);
-                            trans.builder.declare_var(var, I32);
-                        }
+    for expr in expr_tree {
+        match expr {
+            Expr::IdentifierToken(..) | Expr::NumberToken(..) | Expr::Empty => {
+                continue;
+            }
+            Expr::Operation(op_token) => {
+                match &op_token.operator.op_type {
+                    OperatorType::OpType2(op_type) => {
+                        // Operation is an assign operation, =, +=, -= etc.
+                        match op_token.expr1.as_ref() {
+                            Expr::IdentifierToken(token) => {
+                                // Get the value to use
+                                let val2 = cranelift_recursive_treverse_tree(&op_token.expr2, &mut trans);
+                                
+                                // Get the variable to assign to
+                                let name = token.text.as_str();
+                                if !trans.variables.contains_key(name) {
+                                    let var = Variable::new(var_iter);
+                                    var_iter += 1;
+                                    trans.variables.insert(name.into(), var);
+                                    trans.builder.declare_var(var, I32);
+                                }
+                                let var1 = trans.variables.get(name).unwrap();
 
-                        let var1 = trans.variables.get(token1_ident.text.as_str()).unwrap();
-                        let var2 = trans.variables.get(token3_ident.text.as_str()).unwrap();
-                        let val2 = trans.builder.use_var(*var2);
 
-                        // Perform operation between the two variables
-                        match token2_ident.op_type {
-                            OperatorType::Add => {
-                                println!("add variables: {} {}", token1_ident.text, token3_ident.text);
-                                let val1 = trans.builder.use_var(*var1);
-                                // Add variables and store result
-                                let result = trans.builder.ins().iadd(val1, val2);
-                                // Set var1 = result                                
-                                trans.builder.def_var(*var1, result);
-                            }
-                            OperatorType::Sub => {
-                                println!("sub variables: {} {}", token1_ident.text, token3_ident.text);
-                                let val1 = trans.builder.use_var(*var1);
-                                // Add variables and store result
-                                let result = trans.builder.ins().isub(val1, val2);
-                                // Set var1 = result                                
-                                trans.builder.def_var(*var1, result);
-                            }
-                            OperatorType::Eq => {
-                                println!("eq variables: {} {}", token1_ident.text, token3_ident.text);
-                                trans.builder.def_var(*var1, val2);
+                                // Perform the operation
+                                match op_type {
+                                    OpType2::Eq => {
+                                        trans.builder.def_var(*var1, val2.unwrap());
+                                    }
+                                    _ => {
+                                        println!("Not implemented yet!");
+                                        panic!();
+                                    }
+                                }
+
                             }
                             _ => {
-                                
+                                println!("Expected identifier!");
+                                panic!();
                             }
                         }
-
                     }
-                    else if let Token::NumberToken(token3_ident) = token3 {
-                        // Declare the first variable if it is not already defined
-                        if !trans.variables.contains_key(token1_ident.text.as_str()) {
-                            let var = Variable::new(var_iter);
-                            var_iter += 1;
-                            trans.variables.insert(token1_ident.text.as_str().into(), var);
-                            trans.builder.declare_var(var, I32);
-                        }
-
-                        // Declare number as const
-                        let num = token3_ident.num as i64;
-                        let val2 = trans.builder.ins().iconst(I32, num);
-
-                        // Get the variable to be modified
-                        let var1 = trans.variables.get(token1_ident.text.as_str()).unwrap();
-                                
-                        match token2_ident.op_type {
-                            OperatorType::Add => {
-                                println!("add variable with number: {} {}", token1_ident.text, token3_ident.num);
-                                let val1 = trans.builder.use_var(*var1);
-                                // Add variables and store result
-                                let result = trans.builder.ins().iadd(val1, val2);
-                                // Set var1 = result                                
-                                trans.builder.def_var(*var1, result);
-                            }
-                            OperatorType::Sub => {
-                                println!("sub variable with number: {} {}", token1_ident.text, token3_ident.num);
-                                let val1 = trans.builder.use_var(*var1);
-                                // Add variables and store result
-                                let result = trans.builder.ins().isub(val1, val2);
-                                // Set var1 = result                                
-                                trans.builder.def_var(*var1, result);
-                            }
-                            OperatorType::Eq => {
-                                println!("eq variable with number: {} {}", token1_ident.text, token3_ident.num);
-                                trans.builder.def_var(*var1, val2);
-                            }
-                            _ => {
-                            }
-                        }
+                    _ => {
+                        // We dont care about the output, since the expression is for example x + y, and
+                        // it does not assign to anything
+                        cranelift_recursive_treverse_tree(&expr, &mut trans);
                     }
                 }
+            }
+            _ => {
+                continue;
             }
         }
     }
@@ -355,7 +616,38 @@ pub fn compile_code(my_str: String) {
     // available).
     jit.module.finalize_definitions();
 
-    // We can now retrieve a pointer to the machine code.
+    return Ok((jit, id));
+}
+
+pub fn tokenize(my_str: String) -> TokenList {
+    let mut token_list = TokenList::new();
+    let split_str = my_str.split_ascii_whitespace();
+    for i in split_str.into_iter() {
+        if let Some(token) = is_operator(i.to_string()) {
+            println!("operator: {}", i);
+            token_list.tokens.push(Token::OperatorToken(token));
+        }
+        else if let Some(token) = is_number(i.to_string()) {
+            println!("number: {}", i);
+            token_list.tokens.push(Token::NumberToken(token));
+        }
+        else if let Some(token) = is_identifier(i.to_string()) {
+            println!("identifier: {}", i);
+            token_list.tokens.push(Token::IdentifierToken(token));
+        }
+        else if let Some(token) = is_end_of_expression(i.to_string()) {
+            println!("EndOfExpression: {}", i);
+            token_list.tokens.push(token);
+        }
+        else {
+            println!("undefined: {}", i);
+        }
+    }
+    return token_list;
+}
+
+pub fn run_code(id: FuncId, jit: JIT) {
+    // Retrieve a pointer to the machine code.
     let code_ptr = jit.module.get_finalized_function(id);
 
     // Cast the raw pointer to a typed function pointer. This is unsafe, because
@@ -376,7 +668,25 @@ pub fn compile_code(my_str: String) {
     }
 }
 
-struct FunctionTranslator<'a> {
+pub fn compile_code(my_str: String) {
+    // Use the lexer to split up string into tokens
+    let mut token_list = tokenize(my_str);
+    println!("tokens: {}", token_list.to_string());
+
+    // Generate expression tree
+    let tree = generate_tree(&mut token_list);
+    for i in tree.as_ref().unwrap() {
+        println!("{}", i.to_string());
+    }
+
+    // Treverse tree with cranelift to generate executable function
+    let (jit, id) = cranelift_treverse_tree(&tree.unwrap()).unwrap();
+
+    // Run the function
+    run_code(id, jit);
+}
+
+pub struct FunctionTranslator<'a> {
     int: types::Type,
     builder: FunctionBuilder<'a>,
     variables: HashMap<String, Variable>,
@@ -464,7 +774,7 @@ struct FunctionTranslator<'a> {
          sig.params.push(AbiParam::new(int));
          sig.returns.push(AbiParam::new(int));
 
-        /*// Declare return variable
+        /* // Declare return variable
         let var = Variable::new(0);
         let name = "return_var";
         if !trans.variables.contains_key(name) {
@@ -507,7 +817,7 @@ struct FunctionTranslator<'a> {
         let int = self.module.target_config().pointer_type();
 
         let other_func_id = self.declare_call_function();
-        /*// Insert the type of input and output of the function
+        /* // Insert the type of input and output of the function
         let mut sig = self.module.make_signature();
         sig.params.push(AbiParam::new(int));
         sig.returns.push(AbiParam::new(int));
@@ -657,3 +967,109 @@ struct FunctionTranslator<'a> {
         }
     }
 }*/
+
+/*let mut var_iter = 1;
+    // Parse the code from the custom language
+    if token_list.tokens.len() >= 3 {
+        for i in 0..token_list.tokens.len()-2 {
+            let token1: &Token = token_list.tokens.get(i).unwrap();
+            let token2: &Token = token_list.tokens.get(i+1).unwrap();
+            let token3: &Token = token_list.tokens.get(i+2).unwrap();
+            if let Token::IdentifierToken(token1_ident) = token1 {
+                if let Token::OperatorToken(token2_ident) = token2 {
+                    if let Token::IdentifierToken(token3_ident) = token3 {
+                        // Make sure the second variable is defined
+                        if !trans.variables.contains_key(token3_ident.text.as_str()) {
+                            println!("Variable not defined: {}, skipping", token3_ident.text);
+                            continue;
+                        }
+
+                        // Declare the first variable if it is not already defined
+                        if !trans.variables.contains_key(token1_ident.text.as_str()) {
+                            let var = Variable::new(var_iter);
+                            var_iter += 1;
+                            trans.variables.insert(token1_ident.text.as_str().into(), var);
+                            trans.builder.declare_var(var, I32);
+                        }
+
+                        let var1 = trans.variables.get(token1_ident.text.as_str()).unwrap();
+                        let var2 = trans.variables.get(token3_ident.text.as_str()).unwrap();
+                        let val2 = trans.builder.use_var(*var2);
+
+                        // Perform operation between the two variables
+                        match &token2_ident.op_type {
+                            OperatorType::OpType2(op_type) => {
+                                match op_type {
+                                    OpType2::AddEq => {
+                                        println!("add variables: {} {}", token1_ident.text, token3_ident.text);
+                                        let val1 = trans.builder.use_var(*var1);
+                                        // Add variables and store result
+                                        let result = trans.builder.ins().iadd(val1, val2);
+                                        // Set var1 = result                                
+                                        trans.builder.def_var(*var1, result);
+                                    }
+                                    OpType2::SubEq => {
+                                        println!("sub variables: {} {}", token1_ident.text, token3_ident.text);
+                                        let val1 = trans.builder.use_var(*var1);
+                                        // Add variables and store result
+                                        let result = trans.builder.ins().isub(val1, val2);
+                                        // Set var1 = result                                
+                                        trans.builder.def_var(*var1, result);
+                                    }
+                                    OpType2::Eq => {
+                                        println!("eq variables: {} {}", token1_ident.text, token3_ident.text);
+                                        trans.builder.def_var(*var1, val2);
+                                    }
+                                }
+                            }
+                            _ => {
+                                
+                            }
+                        }
+
+                    }
+                    else if let Token::NumberToken(token3_ident) = token3 {
+                        // Declare the first variable if it is not already defined
+                        if !trans.variables.contains_key(token1_ident.text.as_str()) {
+                            let var = Variable::new(var_iter);
+                            var_iter += 1;
+                            trans.variables.insert(token1_ident.text.as_str().into(), var);
+                            trans.builder.declare_var(var, I32);
+                        }
+
+                        // Declare number as const
+                        let num = token3_ident.num as i64;
+                        let val2 = trans.builder.ins().iconst(I32, num);
+
+                        // Get the variable to be modified
+                        let var1 = trans.variables.get(token1_ident.text.as_str()).unwrap();
+                                
+                        match token2_ident.op_type {
+                            OperatorType::OpType2(OpType2::AddEq) => {
+                                println!("add variable with number: {} {}", token1_ident.text, token3_ident.num);
+                                let val1 = trans.builder.use_var(*var1);
+                                // Add variables and store result
+                                let result = trans.builder.ins().iadd(val1, val2);
+                                // Set var1 = result                                
+                                trans.builder.def_var(*var1, result);
+                            }
+                            OperatorType::OpType2(OpType2::SubEq) => {
+                                println!("sub variable with number: {} {}", token1_ident.text, token3_ident.num);
+                                let val1 = trans.builder.use_var(*var1);
+                                // Add variables and store result
+                                let result = trans.builder.ins().isub(val1, val2);
+                                // Set var1 = result                                
+                                trans.builder.def_var(*var1, result);
+                            }
+                            OperatorType::OpType2(OpType2::Eq) => {
+                                println!("eq variable with number: {} {}", token1_ident.text, token3_ident.num);
+                                trans.builder.def_var(*var1, val2);
+                            }
+                            _ => {
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }*/
