@@ -1,4 +1,4 @@
-pub mod compiler_error {
+/*pub mod compiler_error {
     use trait_enum::*;
     use crate::lexer::*;
     #[allow(dead_code)]
@@ -74,3 +74,4 @@ pub mod compiler_error {
         }
     }
 }
+*/
