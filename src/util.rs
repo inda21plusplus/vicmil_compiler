@@ -9,6 +9,10 @@ pub struct IncludedFunctions {
     func: Vec<(*const u8, String)>
 }
 
+pub fn print_int(input: i32) -> () {
+    println!("{}", input);
+}
+
 impl IncludedFunctions {
     pub fn new() -> Self {
         Self {
@@ -18,6 +22,9 @@ impl IncludedFunctions {
     // Just do func_name as *const u8 to get the function
     pub fn add_function(&mut self, name: &str, func: *const u8) {
         self.func.push((func, name.to_string()));
+    }
+    pub fn add_print_int_function(&mut self) {
+        self.add_function("print_int", print_int as *const u8);
     }
 }
 
@@ -45,10 +52,10 @@ pub struct CompilerUtil {
 
 
 pub struct FunctionCreator<'a> {
-    func_builder: &'a mut FunctionBuilder<'a>,
-    variables: HashMap<String, Variable>,
-    variable_count: usize,
-    module: &'a mut JITModule,
+    pub func_builder: &'a mut FunctionBuilder<'a>,
+    pub variables: HashMap<String, Variable>,
+    pub variable_count: usize,
+    pub module: &'a mut JITModule,
 }
 
 impl<'a> FunctionCreator<'a> {
@@ -107,15 +114,51 @@ impl<'a> FunctionCreator<'a> {
         let var = self.variables.get(name).unwrap();
         self.func_builder.def_var(*var, value);
     }
-    pub fn create_variable(&mut self, name: &str) {
-        use cranelift::prelude::types::I32;
-        let var = Variable::new(self.variable_count);
+    pub fn call_function(&mut self, name: &str, sig: Signature, args: &[Value]) -> codegen::ir::Inst {
+        let callee = self
+            .module
+            .declare_function(name, cranelift_module::Linkage::Import, &sig)
+            .map_err(|e| e.to_string()).unwrap();
 
-        // Declare var in variables for function
-        if !self.variables.contains_key(name) {
-            self.variables.insert(name.into(), var);
-            self.func_builder.declare_var(var, I32);
+        let local_callee = self
+            .module
+            .declare_func_in_func(callee, &mut self.func_builder.func);
+
+        let call = self.func_builder.ins().call(local_callee, args);
+        return call;
+    }
+    pub fn print_int(&mut self, input: Value) {
+        use cranelift::prelude::types::I32;
+        let int = self.module.target_config().pointer_type();
+        let mut sig = self.module.make_signature();
+            sig.params.push(AbiParam::new(I32));
+            sig.returns.push(AbiParam::new(int));
+        //self.create_variable("some_var_name", Some(int));
+        //let val = self.get_value_from_variable("some_var_name");
+        self.call_function("print_int", sig, &[input]);
+    }
+    // val_type None means default type I32
+    pub fn create_variable(&mut self, name: &str, val_type: Option<cranelift::prelude::types::Type>) {
+        if val_type.is_some() {
+            let var = Variable::new(self.variable_count);
+    
+            // Declare var in variables for function
+            if !self.variables.contains_key(name) {
+                self.variables.insert(name.into(), var);
+                self.func_builder.declare_var(var, val_type.unwrap());
+            }
         }
+        else {
+            use cranelift::prelude::types::I32;
+            let var = Variable::new(self.variable_count);
+    
+            // Declare var in variables for function
+            if !self.variables.contains_key(name) {
+                self.variables.insert(name.into(), var);
+                self.func_builder.declare_var(var, I32);
+            }
+        }
+        self.variable_count += 1;
     }
 }
 
